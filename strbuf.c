@@ -1,14 +1,5 @@
 #include "strbuf.h"
 
-int starts_with(const char *str, const char *prefix)
-{
-	for (; ; str++, prefix++)
-		if (!*prefix)
-			return 1;
-		else if (*str != *prefix)
-			return 0;
-}
-
 /*
  * Used as the default ->buf value, so that people can always assume
  * buf is non NULL and ->buf is NUL terminated even for a freshly
@@ -102,6 +93,46 @@ int strbuf_cmp(const struct strbuf *a, const struct strbuf *b)
 		return cmp;
 	return a->len < b->len ? -1: a->len != b->len;
 }
+
+
+struct strbuf **strbuf_split_buf(const char *str, size_t slen,
+                 int terminator, int max)
+{
+    struct strbuf **ret = NULL;
+    size_t nr = 0, alloc = 0;
+    struct strbuf *t;
+
+    while (slen) {
+        int len = slen;
+        if (max <= 0 || nr + 1 < max) {
+            const char *end = memchr(str, terminator, slen);
+            if (end)
+                len = end - str + 1;
+        }
+        t = malloc(sizeof(struct strbuf));
+        strbuf_init(t, len);
+        strbuf_add(t, str, len);
+        ALLOC_GROW(ret, nr + 2, alloc);
+        ret[nr++] = t;
+        str += len;
+        slen -= len;
+    }
+    ALLOC_GROW(ret, nr + 1, alloc); /* In case string was empty */
+    ret[nr] = NULL;
+    return ret;
+}
+
+void strbuf_list_free(struct strbuf **sbs)
+{
+    struct strbuf **s = sbs;
+
+    while (*s) {
+        strbuf_release(*s);
+        free(*s++);
+    }
+    free(sbs);
+}
+
 
 void strbuf_splice(struct strbuf *sb, size_t pos, size_t len,
 				   const void *data, size_t dlen)
